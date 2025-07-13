@@ -1,0 +1,27 @@
+if(NOT EXISTS "@CMAKE_CURRENT_BINARY_DIR@/install_manifest.txt")
+  message(FATAL_ERROR "Cannot find install manifest: @CMAKE_CURRENT_BINARY_DIR@/install_manifest.txt")
+endif()
+
+file(READ "@CMAKE_CURRENT_BINARY_DIR@/install_manifest.txt" files)
+string(REGEX REPLACE "\n" ";" files "${files}")
+foreach(file ${files})
+  message(STATUS "Removing: ${file}")
+  file(REMOVE "${file}")
+endforeach()
+
+
+set(SHARE_BASE "@CMAKE_INSTALL_PREFIX@/share")
+set(SHARE_SUBDIR "${SHARE_BASE}/bin2shellcode")
+
+message(STATUS "Removing: ${SHARE_SUBDIR}")
+file(REMOVE_RECURSE "${SHARE_SUBDIR}")
+
+message(STATUS "Removing: ${SHARE_BASE}")
+file(REMOVE_RECURSE "${SHARE_BASE}")
+
+
+if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Windows")
+  message(STATUS "Removing: @CMAKE_INSTALL_PREFIX@")
+  file(REMOVE_RECURSE "@CMAKE_INSTALL_PREFIX@")
+endif()
+
