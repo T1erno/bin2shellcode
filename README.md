@@ -1,6 +1,6 @@
 # bin2shellcode
 
-Simple tool for converting binaries into different shellcode formats.
+Simple tool for converting .bin files into different shellcode formats.
 The conversion logic is available as a static library so it can be reused for other projects.
 
 ```
@@ -12,7 +12,7 @@ Usage:
   bin2shellcode <path> <n> [<name>]
 
 Options:
-  -i, --input <path>      Path to the binary to convert (required)
+  -i, --input <path>      Path to the .bin to convert (required)
   -f, --format <n>        Output format (1-11) (required)
   -n, --varname <name>    Name of the output variable (default: shellcode)
   -h, --help              Show this help and exit
