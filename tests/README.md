@@ -2,7 +2,7 @@
 
 This directory contains the files used to test the library and the `bin2shellcode` executable.
 
-- `MessageBox.bin` is the shellcode in binary format that is used as the input for the tests. This binary shows a message box and was generated with the following command:
+- `MessageBox.bin` is the shellcode in .bin format that is used as the input for the tests. This .bin shows a message box and was generated with the following command:
 
 ```bash
 msfvenom -p windows/x64/messagebox TEXT="Test" TITLE="LoaderOK" -f raw -o MessageBox.bin

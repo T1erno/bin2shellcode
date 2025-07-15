@@ -11,7 +11,7 @@ static void printHelp(const char* prog) {
         << "  bin2shellcode --input <path> --format <n> [--varname <name>]\n"
         << "  bin2shellcode <path> <n> [<name>]\n\n"
         << "Options:\n"
-        << "  -i, --input <path>      Path to the binary to convert (required)\n"
+        << "  -i, --input <path>      Path to the .bin to convert (required)\n"
         << "  -f, --format <n>        Output format (1-11) (required)\n"
         << "  -n, --varname <name>    Name of the output variable (default: shellcode)\n"
         << "  -h, --help              Show this help and exit\n"
