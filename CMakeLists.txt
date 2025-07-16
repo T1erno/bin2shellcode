@@ -86,6 +86,16 @@ add_custom_target(clean-build
     COMMENT "Removing build directory"
 )
 
+find_program(CLANG_FORMAT clang-format)
+file(GLOB_RECURSE ALL_SRC CONFIGURE_DEPENDS
+     "${PROJECT_SOURCE_DIR}/*.[ch]pp"
+     "${PROJECT_SOURCE_DIR}/*.[ch]xx")
+
+add_custom_target(format
+    COMMAND ${CLANG_FORMAT} -i -style=file ${ALL_SRC}
+    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+    COMMENT "Running clang-format on source files")
+
 # Automated tests
 enable_testing()
 add_executable(test_converter tests/test_converter.cpp)

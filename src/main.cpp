@@ -1,10 +1,11 @@
-#include <iostream>
-#include <cstring>
-#include <string>
 #include "converter/converter.h"
+#include <cstring>
+#include <iostream>
+#include <string>
 
-static void printHelp(const char* prog) {
-    std::cout
+static void printHelp(const char *prog) {
+  std::cout
+      // clang-format off
         << "bin2shellcode " << B2S_VERSION << "\n"
         << "=======================\n\n"
         << "Usage:\n"
@@ -33,6 +34,7 @@ static void printHelp(const char* prog) {
         << "Examples:\n"
         << "  Convert \"payload.bin\" to a C byte array:\n"
         << "      bin2shellcode -i payload.bin -f 1\n";
+        // clang-format on// clang-format on
 }
 
 static void printVersion() {
