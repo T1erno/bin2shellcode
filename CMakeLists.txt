@@ -12,23 +12,30 @@ set(CMAKE_CXX_EXTENSIONS    OFF)
 
 add_compile_options(-Wall -Werror -Wpedantic)
 
-add_library(libbin2shellcode STATIC
+add_library(bin2shellcode_lib STATIC
     src/converter/converter.cpp
 )
-target_include_directories(libbin2shellcode
-    PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
+set_target_properties(bin2shellcode_lib PROPERTIES
+    OUTPUT_NAME "bin2shellcode"
+)
+
+
+target_include_directories(bin2shellcode_lib
+    PUBLIC
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+      $<INSTALL_INTERFACE:include>
 )
 
 add_executable(${PROJECT_NAME}
     src/main.cpp
 )
-target_link_libraries(${PROJECT_NAME} PRIVATE libbin2shellcode)
+target_link_libraries(${PROJECT_NAME} PRIVATE bin2shellcode_lib)
 target_compile_definitions(${PROJECT_NAME}
     PRIVATE B2S_VERSION="${PROJECT_VERSION}"
 )
 
 # Installation
-install(TARGETS ${PROJECT_NAME} libbin2shellcode
+install(TARGETS ${PROJECT_NAME} bin2shellcode_lib
     RUNTIME DESTINATION bin
     ARCHIVE DESTINATION lib
     LIBRARY DESTINATION lib
@@ -82,8 +89,9 @@ add_custom_target(clean-build
 # Automated tests
 enable_testing()
 add_executable(test_converter tests/test_converter.cpp)
-target_link_libraries(test_converter PRIVATE libbin2shellcode)
-target_compile_definitions(test_converter PRIVATE TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests")
+target_link_libraries(test_converter PRIVATE bin2shellcode_lib)
+target_compile_definitions(test_converter PRIVATE TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests"
+)
 
 # Name of each test format
 set(FORMAT_NAMES
