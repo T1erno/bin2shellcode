@@ -37,124 +37,118 @@ std::vector<unsigned char> readFile(const std::string &path) {
   return std::vector<unsigned char>(it_begin, it_end);
 }
 
-std::string convert(const std::vector<unsigned char> &buf, int fmt,
-                    const std::string &varName) {
-  const int perLine = 15;
-  int ctr = 1;
-  std::ostringstream out;
+namespace {
 
-  switch (fmt) {
-  case 1: { // Raw hex bytes
-    for (size_t i = 0; i < buf.size(); ++i) {
-      std::ostringstream ss;
-      ss << std::hex << std::setw(2) << std::setfill('0') << int(buf[i]);
-      out << ss.str();
-      if (i + 1 < buf.size()) {
-        if (ctr++ == perLine) {
-          out << "\n";
-          ctr = 1;
-        } else {
-          out << ' ';
-        }
-      }
+std::string byteToHex(unsigned char b) {
+  std::ostringstream ss;
+  ss << std::hex << std::setw(2) << std::setfill('0') << int(b);
+  return ss.str();
+}
+
+template <typename EmitByte, typename EmitBreak>
+void forEachLine(const std::vector<unsigned char> &data, int perLine,
+                 EmitByte emitByte, EmitBreak emitBreak) {
+  int count = 0;
+  for (size_t i = 0; i < data.size(); ++i) {
+    emitByte(data[i], i);
+    if (++count == perLine && i + 1 < data.size()) {
+      emitBreak();
+      count = 0;
     }
-    out << "\n";
+  }
+}
+
+} // namespace
+
+std::string convert(const std::vector<unsigned char> &bytes, Format format,
+                    const std::string &varName) {
+  std::ostringstream out;
+  out << std::hex << std::setfill('0');
+
+  switch (format) {
+  case Format::Raw: {
+    forEachLine(bytes, PER_LINE,
+                [&](unsigned char b, size_t idx) {
+                  out << std::setw(2) << int(b);
+                  if (idx + 1 < bytes.size() &&
+                      (idx + 1) % PER_LINE != 0) {
+                    out << ' ';
+                  }
+                },
+                [&]() { out << '\n'; });
+    out << '\n';
     break;
   }
-  case 2: { // Base64 string only
-    out << encodeBase64(buf) << "\n";
+  case Format::Base64: { // Base64 string only
+    out << encodeBase64(bytes) << '\n';
     break;
   }
-  case 3: { // C string literal with escapes
+  case Format::CString: { // C string literal with escapes
     out << "unsigned char " << varName << "[] =\n\"";
-    for (unsigned char b : buf) {
-      std::ostringstream ss;
-      ss << "\\x" << std::hex << std::setw(2) << std::setfill('0') << int(b);
-      out << ss.str();
-      if (ctr++ == perLine) {
-        out << "\"\n\"";
-        ctr = 1;
-      }
-    }
+    forEachLine(bytes, PER_LINE,
+                [&](unsigned char b, size_t) {
+                  out << "\\x" << byteToHex(b);
+                },
+                [&]() { out << "\"\n\""; });
     out << "\";\n";
     break;
   }
-  case 4: { // Ruby (as C escaped string without semicolon)
+  case Format::Ruby: { // Ruby (as C escaped string without semicolon)
     out << "unsigned char " << varName << "[] =\n\"";
-    for (unsigned char b : buf) {
-      std::ostringstream ss;
-      ss << "\\x" << std::hex << std::setw(2) << std::setfill('0') << int(b);
-      out << ss.str();
-      if (ctr++ == perLine) {
-        out << "\"\n\"";
-        ctr = 1;
-      }
-    }
+    forEachLine(bytes, PER_LINE,
+                [&](unsigned char b, size_t) {
+                  out << "\\x" << byteToHex(b);
+                },
+                [&]() { out << "\"\n\""; });
     out << "\"\n";
     break;
   }
-  case 5: { // Python
+  case Format::Python: {
     out << varName << " = \"\"\n";
     out << varName << " = b\"";
-    for (unsigned char b : buf) {
-      std::ostringstream ss;
-      ss << "\\x" << std::hex << std::setw(2) << std::setfill('0') << int(b);
-      out << ss.str();
-      if (ctr++ == perLine) {
-        out << "\"\n" << varName << " = b\"";
-        ctr = 1;
-      }
-    }
+    forEachLine(bytes, PER_LINE,
+                [&](unsigned char b, size_t) {
+                  out << "\\x" << byteToHex(b);
+                },
+                [&]() { out << "\"\n" << varName << " = b\""; });
     out << "\"\n";
     break;
   }
-  case 6: { // PowerShell
+  case Format::PowerShell: {
     out << "[Byte[]] $" << varName << " = (";
-    for (size_t i = 0; i < buf.size(); ++i) {
-      std::ostringstream ss;
-      ss << "0x" << std::hex << std::setw(2) << std::setfill('0')
-         << int(buf[i]);
-      out << ss.str();
-      if (i + 1 < buf.size()) {
-        out << ",";
-      }
-      if (ctr++ == perLine) {
-        out << "\n";
-        ctr = 1;
-      }
-    }
+    forEachLine(bytes, PER_LINE,
+                [&](unsigned char b, size_t idx) {
+                  out << "0x" << std::setw(2) << int(b);
+                  if (idx + 1 < bytes.size()) {
+                    out << ",";
+                  }
+                },
+                [&]() { out << '\n'; });
     out << ");\n";
     break;
   }
-  case 7: { // C#
+  case Format::CSharp: {
     out << "byte[] " << varName << " = new byte[] {\n";
-    for (size_t i = 0; i < buf.size(); ++i) {
-      std::ostringstream ss;
-      ss << "0x" << std::hex << std::setw(2) << std::setfill('0')
-         << int(buf[i]);
-      out << ss.str();
-      if (i + 1 < buf.size()) {
-        out << ",";
-        if (ctr++ == perLine) {
-          out << "\n";
-          ctr = 1;
-        }
-      }
-    }
+    forEachLine(bytes, PER_LINE,
+                [&](unsigned char b, size_t idx) {
+                  out << "0x" << std::setw(2) << int(b);
+                  if (idx + 1 < bytes.size()) {
+                    out << ",";
+                  }
+                },
+                [&]() { out << '\n'; });
     out << "};\n";
     break;
   }
-  case 8: { // Plain hex string
-    for (unsigned char b : buf) {
-      std::ostringstream ss;
-      ss << std::hex << std::setw(2) << std::setfill('0') << int(b);
-      out << ss.str();
+  case Format::HexString: {
+    for (unsigned char b : bytes) {
+      out << std::setw(2) << int(b);
     }
-    out << "\n";
+    out << '\n';
     break;
   }
-  case 9: { // UUID list
-    std::vector<unsigned char> tmp = buf;
+  case Format::UUID: {
+    std::vector<unsigned char> tmp = bytes;
     size_t pad = (16 - tmp.size() % 16) % 16;
     tmp.insert(tmp.end(), pad, 0);
     for (size_t off = 0; off < tmp.size(); off += 16) {
@@ -170,38 +164,30 @@ std::string convert(const std::vector<unsigned char> &buf, int fmt,
         s << std::hex << std::setw(4) << std::setfill('0') << v;
         return s.str();
       };
-      uuid << hex4(0) << hex4(2) << "-" << hex2(4) << hex2(5) << "-" << hex2(6)
-           << hex2(7) << "-" << hex2(8) << hex2(9) << "-" << hex4(10)
+      uuid << hex4(0) << hex4(2) << '-' << hex2(4) << hex2(5) << '-' << hex2(6)
+           << hex2(7) << '-' << hex2(8) << hex2(9) << '-' << hex4(10)
            << hex4(12);
-      out << uuid.str() << "\n";
+      out << uuid.str() << '\n';
     }
     break;
   }
-  case 10: { // Go
+  case Format::Go: {
     out << "var " << varName << " = []byte{\n";
-    for (unsigned char b : buf) {
-      std::ostringstream ss;
-      ss << "0x" << std::hex << std::setw(2) << std::setfill('0') << int(b);
-      out << ss.str() << ",";
-      if (ctr++ == perLine) {
-        out << "\n";
-        ctr = 1;
-      }
-    }
+    forEachLine(bytes, PER_LINE,
+                [&](unsigned char b, size_t) {
+                  out << "0x" << std::setw(2) << int(b) << ",";
+                },
+                [&]() { out << '\n'; });
     out << "}\n";
     break;
   }
-  case 11: { // Rust
+  case Format::Rust: {
     out << "let " << varName << ": &[u8] = &[\n";
-    for (unsigned char b : buf) {
-      std::ostringstream ss;
-      ss << "0x" << std::hex << std::setw(2) << std::setfill('0') << int(b);
-      out << ss.str() << ",";
-      if (ctr++ == perLine) {
-        out << "\n";
-        ctr = 1;
-      }
-    }
+    forEachLine(bytes, PER_LINE,
+                [&](unsigned char b, size_t) {
+                  out << "0x" << std::setw(2) << int(b) << ",";
+                },
+                [&]() { out << '\n'; });
     out << "];\n";
     break;
   }

@@ -43,7 +43,7 @@ static void printVersion() {
 
 int main(int argc, char* argv[]) {
     std::string filePath;
-    int fmt = 0;
+    int formatValue = 0;
     std::string varName;
 
     for (int i = 1; i < argc; ++i) {
@@ -59,14 +59,24 @@ int main(int argc, char* argv[]) {
             filePath = argv[++i];
         } else if ((std::strcmp(arg, "--format") == 0 ||
                     std::strcmp(arg, "-f") == 0) && i + 1 < argc) {
-            fmt = std::stoi(argv[++i]);
+            try {
+                formatValue = std::stoi(argv[++i]);
+            } catch (...) {
+                std::cerr << "Invalid format: " << argv[i] << "\n";
+                return 1;
+            }
         } else if ((std::strcmp(arg, "--varname") == 0 ||
                     std::strcmp(arg, "-n") == 0) && i + 1 < argc) {
             varName = argv[++i];
         } else if (filePath.empty()) {
             filePath = arg;
-        } else if (fmt == 0) {
-            fmt = std::stoi(arg);
+        } else if (formatValue == 0) {
+            try {
+                formatValue = std::stoi(arg);
+            } catch (...) {
+                std::cerr << "Invalid format: " << arg << "\n";
+                return 1;
+            }
         } else if (varName.empty()) {
             varName = arg;
         } else {
@@ -75,13 +85,14 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    if (filePath.empty() || fmt == 0) {
+    if (filePath.empty() || formatValue == 0) {
         std::cerr << "Not enough arguments.\n";
         printHelp(argv[0]);
         return 1;
     }
 
-    if (fmt < 1 || fmt > 11) {
+    if (formatValue < static_cast<int>(b2s::Format::Raw) ||
+        formatValue > static_cast<int>(b2s::Format::Rust)) {
         std::cerr << "Invalid format. Use -h for help.\n";
         return 1;
     }
@@ -90,9 +101,11 @@ int main(int argc, char* argv[]) {
         varName = "buf";
     }
 
-    auto buf = b2s::readFile(filePath);
+    auto bytes = b2s::readFile(filePath);
     try {
-        std::cout << b2s::convert(buf, fmt, varName);
+        std::cout << b2s::convert(bytes,
+                                  static_cast<b2s::Format>(formatValue),
+                                  varName);
     } catch (const std::exception& e) {
         std::cerr << e.what() << "\n";
         return 1;

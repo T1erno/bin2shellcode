@@ -17,37 +17,23 @@ using byte_buffer = std::vector<unsigned char>;
 #endif
 static constexpr std::string_view TestDataDir{TEST_DATA_DIR};
 
-#define FORMAT_LIST                                                            \
-  X(Raw, "raw")                                                                \
-  X(Base64, "b64")                                                             \
-  X(C, "c")                                                                    \
-  X(Ruby, "rb")                                                                \
-  X(Python, "py")                                                              \
-  X(PowerShell, "ps1")                                                         \
-  X(CSharp, "cs")                                                              \
-  X(Hex, "hex")                                                                \
-  X(UUID, "uuid")                                                              \
-  X(Go, "go")                                                                  \
-  X(Rust, "rs")
-
-enum class Format {
-#define X(name, ext) name,
-  FORMAT_LIST
-#undef X
+struct FormatInfo {
+  b2s::Format fmt;
+  std::string_view ext;
 };
 
-enum {
-  FormatCount =
-#define X(name, ext) +1
-      0 FORMAT_LIST
-#undef X
-};
-
-static constexpr std::array<std::string_view, FormatCount> FormatExtensions = {
-#define X(name, ext) ext,
-    FORMAT_LIST
-#undef X
-};
+static constexpr std::array<FormatInfo, 11> Formats = {
+    FormatInfo{b2s::Format::Raw, "raw"},
+    FormatInfo{b2s::Format::Base64, "b64"},
+    FormatInfo{b2s::Format::CString, "c"},
+    FormatInfo{b2s::Format::Ruby, "rb"},
+    FormatInfo{b2s::Format::Python, "py"},
+    FormatInfo{b2s::Format::PowerShell, "ps1"},
+    FormatInfo{b2s::Format::CSharp, "cs"},
+    FormatInfo{b2s::Format::HexString, "hex"},
+    FormatInfo{b2s::Format::UUID, "uuid"},
+    FormatInfo{b2s::Format::Go, "go"},
+    FormatInfo{b2s::Format::Rust, "rs"}};
 
 std::string readFileText(const fs::path &filePath) {
   std::ifstream input{filePath, std::ios::binary};
@@ -55,20 +41,23 @@ std::string readFileText(const fs::path &filePath) {
   buffer << input.rdbuf();
   return buffer.str();
 }
-
-std::string_view getExtension(Format fmt) noexcept {
-  return FormatExtensions.at(static_cast<size_t>(fmt));
+ 
+std::string_view getExtension(b2s::Format fmt) {
+  for (const auto &info : Formats) {
+    if (info.fmt == fmt) {
+      return info.ext;
+    }
+  }
+  return {};
 }
 
-void verifyFormat(const byte_buffer &buffer, Format fmt) {
+void verifyFormat(const byte_buffer &buffer, b2s::Format fmt) {
   fs::path expectedFile =
       fs::path{TestDataDir} / ("shellcode." + std::string(getExtension(fmt)));
   std::string expected = readFileText(expectedFile);
   std::string varName =
-      (fmt == Format::Ruby ? "buf" : "shellcode"); // Specific test for Ruby
-  // "b2s::convert" expects the format numbers starting from 1 while "Format"
-  // enum is zero based
-  std::string output = b2s::convert(buffer, static_cast<int>(fmt) + 1, varName);
+      (fmt == b2s::Format::Ruby ? "buf" : "shellcode"); // Specific test for Ruby
+  std::string output = b2s::convert(buffer, fmt, varName);
   assert(output == expected);
 }
 
@@ -79,12 +68,14 @@ int main(int argc, char *argv[]) {
 
   if (argc > 1) {
     int idx = std::atoi(argv[1]);
-    verifyFormat(buffer, static_cast<Format>(idx - 1));
+    if (idx >= 1 && idx <= static_cast<int>(Formats.size())) {
+      verifyFormat(buffer, Formats[idx - 1].fmt);
+    }
     return EXIT_SUCCESS;
   }
 
-  for (size_t i = 0; i < FormatCount; ++i) {
-    verifyFormat(buffer, static_cast<Format>(i));
+  for (const auto &info : Formats) {
+    verifyFormat(buffer, info.fmt);
   }
 
   return EXIT_SUCCESS;
