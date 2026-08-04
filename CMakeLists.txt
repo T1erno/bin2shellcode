@@ -12,7 +12,10 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_compile_options(-Wall -Werror -Wpedantic)
 
-add_library(bin2shellcode_lib STATIC src/converter/converter.cpp)
+add_library(bin2shellcode_lib STATIC
+  src/converter/converter.cpp
+  src/converter/encoder.cpp
+  src/converter/formatter.cpp)
 set_target_properties(bin2shellcode_lib PROPERTIES OUTPUT_NAME "bin2shellcode")
 
 target_include_directories(
@@ -82,7 +85,7 @@ add_custom_target(
   WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
   COMMENT "Running clang-format on source files")
 
-find_program(CMAKE_FORMAT_BIN NAMES cmake-format REQUIRED)
+# find_program(CMAKE_FORMAT_BIN NAMES cmake-format REQUIRED)
 
 file(
   GLOB_RECURSE
@@ -107,21 +110,23 @@ target_link_libraries(test_converter PRIVATE bin2shellcode_lib)
 target_compile_definitions(
   test_converter PRIVATE TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests")
 
-# Name of each test format
+# Name of each test format and encoding
 set(FORMAT_NAMES
     Raw
-    Base64
     C
     Ruby
     Python
     PowerShell
     CSharp
+    Go
+    Rust
+    Base64
     Hex
     UUID
-    Go
-    Rust)
+    IPv4
+    MAC)
 
-foreach(idx RANGE 0 10)
+foreach(idx RANGE 0 12)
   math(EXPR arg "${idx}+1")
   list(GET FORMAT_NAMES ${idx} fmtName)
   add_test(NAME ${fmtName} COMMAND test_converter ${arg})
