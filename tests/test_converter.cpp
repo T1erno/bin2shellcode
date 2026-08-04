@@ -1,9 +1,11 @@
 #include "converter/converter.h"
+#include "converter/encoder.h"
 #include <array>
 #include <cassert>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <iostream>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -22,18 +24,27 @@ struct FormatInfo {
   std::string_view ext;
 };
 
-static constexpr std::array<FormatInfo, 11> Formats = {
+static constexpr std::array<FormatInfo, 8> Formats = {
     FormatInfo{b2s::Format::Raw, "raw"},
-    FormatInfo{b2s::Format::Base64, "b64"},
     FormatInfo{b2s::Format::CString, "c"},
     FormatInfo{b2s::Format::Ruby, "rb"},
     FormatInfo{b2s::Format::Python, "py"},
     FormatInfo{b2s::Format::PowerShell, "ps1"},
     FormatInfo{b2s::Format::CSharp, "cs"},
-    FormatInfo{b2s::Format::HexString, "hex"},
-    FormatInfo{b2s::Format::UUID, "uuid"},
     FormatInfo{b2s::Format::Go, "go"},
     FormatInfo{b2s::Format::Rust, "rs"}};
+
+struct EncodingInfo {
+  b2s::CipherType cipher;
+  std::string_view ext;
+};
+
+static constexpr std::array<EncodingInfo, 5> Encodings = {
+    EncodingInfo{b2s::CipherType::Base64, "b64"},
+    EncodingInfo{b2s::CipherType::Hex, "hex"},
+    EncodingInfo{b2s::CipherType::UUID, "uuid"},
+    EncodingInfo{b2s::CipherType::IPv4, "ipv4"},
+    EncodingInfo{b2s::CipherType::MAC, "mac"}};
 
 std::string readFileText(const fs::path &filePath) {
   std::ifstream input{filePath, std::ios::binary};
@@ -41,7 +52,7 @@ std::string readFileText(const fs::path &filePath) {
   buffer << input.rdbuf();
   return buffer.str();
 }
- 
+
 std::string_view getExtension(b2s::Format fmt) {
   for (const auto &info : Formats) {
     if (info.fmt == fmt) {
@@ -55,9 +66,17 @@ void verifyFormat(const byte_buffer &buffer, b2s::Format fmt) {
   fs::path expectedFile =
       fs::path{TestDataDir} / ("shellcode." + std::string(getExtension(fmt)));
   std::string expected = readFileText(expectedFile);
-  std::string varName =
-      (fmt == b2s::Format::Ruby ? "buf" : "shellcode"); // Specific test for Ruby
-  std::string output = b2s::convert(buffer, fmt, varName);
+  std::string varName = (fmt == b2s::Format::Ruby ? "buf" : "shellcode");
+  std::string output = b2s::convert(buffer, fmt, varName, b2s::CipherType::Raw);
+  assert(output == expected);
+}
+
+void verifyEncoding(const byte_buffer &buffer, const EncodingInfo &encInfo) {
+  fs::path expectedFile =
+      fs::path{TestDataDir} / ("shellcode." + std::string(encInfo.ext));
+  std::string expected = readFileText(expectedFile);
+  std::string output =
+      b2s::convert(buffer, b2s::Format::Raw, "shellcode", encInfo.cipher);
   assert(output == expected);
 }
 
@@ -70,12 +89,19 @@ int main(int argc, char *argv[]) {
     int idx = std::atoi(argv[1]);
     if (idx >= 1 && idx <= static_cast<int>(Formats.size())) {
       verifyFormat(buffer, Formats[idx - 1].fmt);
+    } else if (idx > static_cast<int>(Formats.size()) &&
+               idx <= static_cast<int>(Formats.size() + Encodings.size())) {
+      verifyEncoding(buffer, Encodings[idx - 1 - Formats.size()]);
     }
     return EXIT_SUCCESS;
   }
 
   for (const auto &info : Formats) {
     verifyFormat(buffer, info.fmt);
+  }
+
+  for (const auto &encInfo : Encodings) {
+    verifyEncoding(buffer, encInfo);
   }
 
   return EXIT_SUCCESS;
